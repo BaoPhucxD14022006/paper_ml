@@ -1,0 +1,31 @@
+# Experiment 1 — Split MNIST classification (Table 4 setting, Section 4.5)
+name: cls_mnist
+task: classification
+device: auto
+seeds: [0, 1, 2, 3, 4]
+data:
+  name: mnist
+  n_tasks: 5
+  batch_size: 10          # "we only access a batch of ten data samples"
+  flatten: true           # MLP input 784
+  value_range: "01"
+model:
+  name: mlp               # 2 hidden layers x 400 units
+memory:
+  type: dcm               # none | reservoir | dcm
+  memory_size: 2000       # max memory for Split MNIST
+  kdm: se                 # se | js
+  js_mode: exact          # exact | dimwise
+  t_star: 100
+  pi: 128                 # rho = memory_size // pi = 15
+  lambda: 60.0            # calibrated with tools/distance_stats.py (scale depends on preprocessing)
+  expansion_mode: batch   # batch (Eq. 10) | sample (Algorithm 1)
+  expansion_reassign: false
+  intra_prune_mode: nearest   # nearest (text) | farthest (Eq. 12 as printed)
+  mpp_mode: consistent        # consistent | literal | off
+train:
+  lr: 0.05
+  iters_per_step: 1
+  replay_batch_size: 10
+  train_source: stream+memory   # stream+memory | memory
+

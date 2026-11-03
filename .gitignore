@@ -1,0 +1,44 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Pytest & coverage caches
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Downloaded datasets (auto-downloaded by torchvision)
+/data/
+Data/FashionMNIST/
+Data/MNIST/
+
+# PyTorch checkpoints & large model weights
+*.pt
+*.pth
+*.ckpt
+
+# Experiment outputs: ignore heavy intermediate logs, keep final figures & report
+results/*
+!results/figures/
+!results/suite/
+results/suite/*
+!results/suite/full_report.json
+!results/suite/gen_fast_dcm_se/
+results/suite/gen_fast_dcm_se/*
+!results/suite/gen_fast_dcm_se/samples_seed0.png
+!results/suite/gen_fast_rddpm/
+results/suite/gen_fast_rddpm/*
+!results/suite/gen_fast_rddpm/samples_seed0.png
+
+# IDEs & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

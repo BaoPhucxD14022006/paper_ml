@@ -1,0 +1,30 @@
+# Experiment 1 — Split CIFAR-10 classification (Table 4 setting, Section 4.5)
+name: cls_cifar10
+task: classification
+device: auto
+seeds: [0, 1, 2, 3, 4]
+data:
+  name: cifar10
+  n_tasks: 5
+  batch_size: 10
+  value_range: "01"
+model:
+  name: reduced_resnet18
+memory:
+  type: dcm
+  memory_size: 1000       # max memory for Split CIFAR10
+  kdm: se
+  js_mode: exact
+  t_star: 100
+  pi: 100                 # rho = 10
+  lambda: 150.0           # calibrate with tools/distance_stats.py --dataset cifar10
+  expansion_mode: batch
+  expansion_reassign: false
+  intra_prune_mode: nearest
+  mpp_mode: consistent
+train:
+  lr: 0.05
+  iters_per_step: 1
+  replay_batch_size: 10
+  train_source: stream+memory
+

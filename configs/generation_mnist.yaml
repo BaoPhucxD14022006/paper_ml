@@ -1,0 +1,48 @@
+# Experiment 2 — Split MNIST unsupervised generation with IDDPM (Table 1, Section 4.1/4.2)
+# Full setting needs a GPU (Colab/Kaggle). For a CPU smoke test use:
+#   --set data.max_samples_per_task=640 model.unet.base=32 eval.n_fid=200 eval.sample_steps=50
+name: gen_mnist
+task: generation
+device: auto
+seeds: [0]
+data:
+  name: mnist             # mnist | fashion | svhn | cifar10
+  n_tasks: 5
+  batch_size: 64          # b = 64
+  image_size: 32          # "Each image is resized to 32x32x3"
+  channels: 3
+  value_range: pm1
+model:
+  T: 1000
+  schedule: linear
+  vlb_weight: 0.001       # lambda in Eq. (3)
+  unet:
+    base: 64
+    mults: [1, 2, 2]
+    n_res: 2
+    attn_res: [16]
+    dropout: 0.1
+memory:
+  type: dcm               # reservoir -> R-DDPM baseline
+  memory_size: 2000
+  kdm: se
+  js_mode: exact
+  t_star: 100
+  pi: 128                 # rho = 15
+  lambda: 2000.0          # Fig. 3a sweeps 1700..2300 on this scale (32x32x3 in [-1,1])
+  expansion_mode: batch
+  expansion_reassign: false
+  intra_prune_mode: nearest
+  mpp_mode: consistent
+train:
+  lr: 0.0002
+  iters_per_step: 1
+  train_batch_size: 64
+  train_source: memory    # Algorithm 1: "Update eps_theta on M"
+  ema: 0.999
+eval:
+  n_fid: 2000
+  sample_steps: 100
+  sample_batch: 100
+  compute_fid: true
+
