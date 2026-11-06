@@ -1,0 +1,137 @@
+{
+  "classification_table4": {
+    "finetune": {
+      "acc_mean": 0.1922,
+      "acc_std": 0.001907878402833882,
+      "clusters_mean": null,
+      "mem_size_mean": 0,
+      "memory_time_mean": 0.0
+    },
+    "reservoir": {
+      "acc_mean": 0.9132,
+      "acc_std": 0.009104394543296167,
+      "clusters_mean": null,
+      "mem_size_mean": 2000,
+      "memory_time_mean": 0.9944234000076904
+    },
+    "dcm_se_lam75": {
+      "acc_mean": 0.6299,
+      "acc_std": 0.12834402985725515,
+      "clusters_mean": 15,
+      "mem_size_mean": 1747.6666666666667,
+      "memory_time_mean": 6.474066633323673
+    },
+    "dcm_se_lam85": {
+      "acc_mean": 0.6445333333333333,
+      "acc_std": 0.06375275157460526,
+      "clusters_mean": 9,
+      "mem_size_mean": 1152,
+      "memory_time_mean": 6.102238033343383
+    },
+    "dcm_js_dimwise": {
+      "acc_mean": 0.3661,
+      "acc_std": 0.008316249154516718,
+      "clusters_mean": 1,
+      "mem_size_mean": 128,
+      "memory_time_mean": 7.010016533354853
+    },
+    "dcm_js_exact": {
+      "acc_mean": 0.38493333333333335,
+      "acc_std": 0.007069181942299493,
+      "clusters_mean": 15,
+      "mem_size_mean": 142,
+      "memory_time_mean": 18.938489133324463
+    }
+  },
+  "ablation_contradictions": {
+    "eq12_nearest_text": {
+      "acc_mean": 0.6299,
+      "acc_std": 0.12834402985725515,
+      "clusters_mean": 15,
+      "mem_size_mean": 1747.6666666666667
+    },
+    "eq12_farthest_printed": {
+      "acc_mean": 0.5557666666666666,
+      "acc_std": 0.06328872990772792,
+      "clusters_mean": 15,
+      "mem_size_mean": 1747.6666666666667
+    },
+    "mpp_consistent_rho6": {
+      "acc_mean": 0.4625,
+      "acc_std": 0.09354073978753857,
+      "clusters_mean": 6,
+      "mem_size_mean": 703.3333333333334
+    },
+    "mpp_literal_rho6": {
+      "acc_mean": 0.45313333333333333,
+      "acc_std": 0.0891821917948496,
+      "clusters_mean": 6,
+      "mem_size_mean": 768
+    }
+  },
+  "ablation_lambda": [
+    {
+      "lambda": 65.0,
+      "clusters": 15,
+      "mem_size": 1756,
+      "acc": 0.6647
+    },
+    {
+      "lambda": 70.0,
+      "clusters": 15,
+      "mem_size": 1711,
+      "acc": 0.5782
+    },
+    {
+      "lambda": 75.0,
+      "clusters": 15,
+      "mem_size": 1581,
+      "acc": 0.4876
+    },
+    {
+      "lambda": 80.0,
+      "clusters": 7,
+      "mem_size": 896,
+      "acc": 0.5615
+    },
+    {
+      "lambda": 85.0,
+      "clusters": 10,
+      "mem_size": 1280,
+      "acc": 0.585
+    },
+    {
+      "lambda": 90.0,
+      "clusters": 6,
+      "mem_size": 768,
+      "acc": 0.5587
+    },
+    {
+      "lambda": 95.0,
+      "clusters": 4,
+      "mem_size": 512,
+      "acc": 0.4449
+    }
+  ],
+  "memory_time": {
+    "mnist": {
+      "dcm_se_sec": 4.994004300006964,
+      "dcm_js_sec": 7.509501699999419
+    },
+    "fashion": {
+      "dcm_se_sec": 3.6731118999878163,
+      "dcm_js_sec": 7.304332599997906
+    }
+  },
+  "generation": {
+    "r_ddpm": {
+      "wall_time": 27.334668299999976,
+      "final_mem_size": 640
+    },
+    "dcm_se": {
+      "wall_time": 27.315626699999484,
+      "final_mem_size": 128,
+      "final_clusters": 2
+    }
+  }
+}
