@@ -27,4 +27,8 @@ train:
   iters_per_step: 1
   replay_batch_size: 10
   train_source: stream+memory
-
+wandb:
+  enabled: false
+  project: dcm-otfcl-cvpr2024
+  entity: null
+  tags: [lab1-reproduction, table4, classification, split-cifar10]

@@ -5,6 +5,7 @@ Ví dụ cách chạy:
 python run_experiment.py --config configs/classification_mnist.yaml --set memory.type=dcm memory.kdm=se
 python run_experiment.py --config configs/classification_mnist.yaml --sweep memory.lambda=20,30,40,50
 python run_experiment.py --config configs/generation_mnist.yaml --seeds 0
+python run_experiment.py --config configs/classification_mnist.yaml --wandb --wandb-project dcm-otfcl
 """
 from __future__ import annotations
 
@@ -51,6 +52,10 @@ def run_one(cfg: dict, seeds, out_dir: str) -> dict:
         print("   ->", json.dumps(brief), flush=True)
 
     summary = {"name": cfg["name"], "config": cfg, "runs": results}
+    wb_urls = [r["wandb_url"] for r in results if r.get("wandb_url")]
+    if wb_urls:
+        summary["wandb_urls"] = wb_urls
+        summary["wandb_url"] = wb_urls[0]
     for metric in ("acc", "fid", "memory_time", "final_clusters", "final_mem_size"):
         vals = [r[metric] for r in results if r.get(metric) is not None]
         if vals:
@@ -70,6 +75,11 @@ def main():
     ap.add_argument("--sweep", nargs="*", default=[], help="Quét nhiều giá trị dạng key=v1,v2,...")
     ap.add_argument("--seeds", type=str, default=None, help="Danh sách seed ngẫu nhiên (cách nhau bởi dấu phẩy)")
     ap.add_argument("--out", default="results", help="Thư mục lưu kết quả")
+    # Tích hợp Weights & Biases (W&B)
+    ap.add_argument("--wandb", action="store_true", help="Bật ghi log lên Weights & Biases")
+    ap.add_argument("--wandb-project", type=str, default=None, help="Tên project trên W&B")
+    ap.add_argument("--wandb-entity", type=str, default=None, help="Tên username hoặc team trên W&B")
+    ap.add_argument("--wandb-tags", type=str, default=None, help="Danh sách tags cách nhau bằng dấu phẩy")
     args = ap.parse_args()
 
     with open(args.config, encoding="utf-8") as f:
@@ -80,6 +90,17 @@ def main():
         k, v = kv.split("=", 1)
         set_by_path(base, k, parse_value(v))
     seeds = [int(s) for s in (args.seeds.split(",") if args.seeds else base.get("seeds", [0]))]
+
+    # Cấu hình W&B từ CLI
+    if args.wandb:
+        set_by_path(base, "wandb.enabled", True)
+    if args.wandb_project:
+        set_by_path(base, "wandb.project", args.wandb_project)
+    if args.wandb_entity:
+        set_by_path(base, "wandb.entity", args.wandb_entity)
+    if args.wandb_tags:
+        tags = [t.strip() for t in args.wandb_tags.split(",") if t.strip()]
+        set_by_path(base, "wandb.tags", tags)
 
     # Xử lý quét lưới tham số qua --sweep
     sweep_keys, sweep_vals = [], []

@@ -10,7 +10,7 @@ from ..data import N_CLASSES, iterate_test
 from ..models import build_classifier
 from ..utils import get_device, set_seed
 from ..utils.metrics import accuracy
-from .common import build_data, build_memory
+from .common import build_data, build_memory, init_wandb
 
 
 def run_classification(cfg: dict, seed: int, log_every: int = 500) -> dict:
@@ -18,6 +18,9 @@ def run_classification(cfg: dict, seed: int, log_every: int = 500) -> dict:
     set_seed(seed)
     device = get_device(cfg.get("device", "auto"))
     dcfg, mcfg, tcfg = cfg["data"], cfg["memory"], cfg["train"]
+
+    # Khởi tạo kết nối W&B (nếu được bật trong cấu hình)
+    wb_run = init_wandb(cfg, seed)
 
     # Khởi tạo dữ liệu và bộ nhớ
     stream, test, pre = build_data(dcfg, seed)
@@ -39,6 +42,7 @@ def run_classification(cfg: dict, seed: int, log_every: int = 500) -> dict:
         if memory is not None and source == "memory":
             memory.observe(x, y)
 
+        loss_val = 0.0
         if not memory_only:
             for _ in range(tcfg.get("iters_per_step", 1)):
                 if memory is None:
@@ -57,19 +61,34 @@ def run_classification(cfg: dict, seed: int, log_every: int = 500) -> dict:
                 opt.zero_grad(set_to_none=True)
                 loss.backward()
                 opt.step()
+                loss_val = float(loss.item())
 
         if memory is not None and source != "memory":
             memory.observe(x, y)
 
+        current_k = getattr(memory, "k", 1) if memory is not None else 0
+        current_mem = len(memory) if memory is not None else 0
+        current_task = stream.oracle_task_of_step(i)
+
         if memory is not None:
             trace["step"].append(i)
-            trace["k"].append(getattr(memory, "k", 1))
-            trace["mem_size"].append(len(memory))
-            trace["task"].append(stream.oracle_task_of_step(i))  # Chỉ dùng để vẽ đồ thị đánh giá
+            trace["k"].append(current_k)
+            trace["mem_size"].append(current_mem)
+            trace["task"].append(current_task)
+
+        # Log metrics từng bước lên W&B
+        if wb_run is not None and (i % 100 == 0 or i == len(stream) - 1):
+            wb_run.log({
+                "train/loss": loss_val,
+                "memory/clusters": current_k,
+                "memory/size": current_mem,
+                "stream/oracle_task": current_task,
+                "stream/step": i
+            }, step=i)
 
         if log_every and i % log_every == 0:
-            k = getattr(memory, "k", "-") if memory is not None else "-"
-            print(f"  bước {i}/{len(stream)}: số cụm={k}, bộ nhớ={len(memory) if memory else 0}", flush=True)
+            k_disp = getattr(memory, "k", "-") if memory is not None else "-"
+            print(f"  bước {i}/{len(stream)}: số cụm={k_disp}, bộ nhớ={current_mem}", flush=True)
 
     wall = time.perf_counter() - t0
 
@@ -99,5 +118,21 @@ def run_classification(cfg: dict, seed: int, log_every: int = 500) -> dict:
             torch.bincount(c.labels, minlength=n_classes).tolist()
             for c in memory.clusters if c.labels is not None
         ]
+
+    # Cập nhật kết quả cuối cùng lên W&B summary và đóng session
+    if wb_run is not None:
+        summary_payload = {
+            "eval/acc": res.get("acc", 0.0),
+            "eval/final_clusters": res["final_clusters"],
+            "eval/final_mem_size": res["final_mem_size"],
+            "eval/memory_time_sec": res["memory_time"],
+            "eval/wall_time_sec": res["wall_time"]
+        }
+        if "acc_per_task" in res:
+            for t_idx, t_acc in enumerate(res["acc_per_task"]):
+                summary_payload[f"eval/acc_task_{t_idx}"] = t_acc
+        wb_run.summary.update(summary_payload)
+        res["wandb_url"] = getattr(wb_run, "url", None)
+        wb_run.finish()
 
     return res

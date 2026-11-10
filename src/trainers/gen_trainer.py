@@ -14,7 +14,7 @@ import torch
 from ..data import iterate_test
 from ..models import GaussianDiffusion, UNet, make_betas
 from ..utils import get_device, set_seed
-from .common import build_data, build_memory
+from .common import build_data, build_memory, init_wandb
 
 
 @torch.no_grad()
@@ -31,6 +31,9 @@ def run_generation(cfg: dict, seed: int, out_dir: str, log_every: int = 100) -> 
     set_seed(seed)
     device = get_device(cfg.get("device", "auto"))
     dcfg, mcfg, tcfg, mdl = cfg["data"], cfg["memory"], cfg["train"], cfg["model"]
+
+    # Khởi tạo kết nối W&B (nếu được bật trong cấu hình)
+    wb_run = init_wandb(cfg, seed)
 
     stream, test, pre = build_data(dcfg, seed)
     memory = build_memory(mcfg, seed)
@@ -56,6 +59,7 @@ def run_generation(cfg: dict, seed: int, out_dir: str, log_every: int = 100) -> 
         if memory is not None:
             memory.observe(x)
 
+        loss_dict = {"loss": 0.0, "mse": 0.0, "vlb": 0.0}
         if not memory_only:
             # Bước 4: Huấn luyện mô hình khuếch tán với dữ liệu từ bộ nhớ
             for _ in range(tcfg.get("iters_per_step", 1)):
@@ -73,17 +77,39 @@ def run_generation(cfg: dict, seed: int, out_dir: str, log_every: int = 100) -> 
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
                 opt.step()
                 ema_update(ema, model, tcfg.get("ema", 0.999))
+                loss_dict = {
+                    "loss": float(out["loss"].item()),
+                    "mse": float(out["mse"].item()),
+                    "vlb": float(out["vlb"].item())
+                }
+
+        current_k = getattr(memory, "k", 1) if memory is not None else 0
+        current_mem = len(memory) if memory is not None else 0
+        current_task = stream.oracle_task_of_step(i)
 
         if memory is not None:
             trace["step"].append(i)
-            trace["k"].append(getattr(memory, "k", 1))
-            trace["mem_size"].append(len(memory))
-            trace["task"].append(stream.oracle_task_of_step(i))
+            trace["k"].append(current_k)
+            trace["mem_size"].append(current_mem)
+            trace["task"].append(current_task)
+
+        # Log metrics từng bước lên W&B
+        if wb_run is not None and (i % 50 == 0 or i == len(stream) - 1):
+            wb_payload = {
+                "train/loss": loss_dict["loss"],
+                "train/mse": loss_dict["mse"],
+                "train/vlb": loss_dict["vlb"],
+                "memory/clusters": current_k,
+                "memory/size": current_mem,
+                "stream/oracle_task": current_task,
+                "stream/step": i
+            }
+            wb_run.log(wb_payload, step=i)
 
         if log_every and i % log_every == 0:
-            msg = f"  bước {i}/{len(stream)}: số cụm={getattr(memory, 'k', '-')} bộ nhớ={len(memory) if memory else 0}"
+            msg = f"  bước {i}/{len(stream)}: số cụm={getattr(memory, 'k', '-')} bộ nhớ={current_mem}"
             if not memory_only:
-                msg += f" loss={out['loss'].item():.4f}"
+                msg += f" loss={loss_dict['loss']:.4f}"
             print(msg, flush=True)
 
     wall = time.perf_counter() - t0
@@ -102,6 +128,15 @@ def run_generation(cfg: dict, seed: int, out_dir: str, log_every: int = 100) -> 
         res["n_expansions"], res["n_prunes"] = memory.n_expansions, memory.n_prunes
 
     if memory_only:
+        if wb_run is not None:
+            wb_run.summary.update({
+                "eval/final_clusters": res["final_clusters"],
+                "eval/final_mem_size": res["final_mem_size"],
+                "eval/memory_time_sec": res["memory_time"],
+                "eval/wall_time_sec": res["wall_time"]
+            })
+            res["wandb_url"] = getattr(wb_run, "url", None)
+            wb_run.finish()
         return res
 
     # Lưu trọng số mô hình EMA và sinh ảnh mẫu kiểm thử
@@ -118,7 +153,8 @@ def run_generation(cfg: dict, seed: int, out_dir: str, log_every: int = 100) -> 
 
     # Xuất lưới 64 ảnh sinh ra
     from torchvision.utils import save_image
-    save_image((fakes[:64] + 1) / 2, os.path.join(out_dir, f"samples_seed{seed}.png"), nrow=8)
+    samples_path = os.path.join(out_dir, f"samples_seed{seed}.png")
+    save_image((fakes[:64] + 1) / 2, samples_path, nrow=8)
 
     # Tính toán chỉ số FID nếu cấu hình yêu cầu
     if ecfg.get("compute_fid", True):
@@ -126,5 +162,24 @@ def run_generation(cfg: dict, seed: int, out_dir: str, log_every: int = 100) -> 
         reals = torch.cat([xb for xb, _ in iterate_test(test, pre)])
         idx = torch.randperm(len(reals), generator=torch.Generator().manual_seed(0))[:n_fid]
         res["fid"] = fid(InceptionFeatures(device), reals[idx], fakes)
+
+    # Đẩy ảnh mẫu và metrics cuối cùng lên W&B
+    if wb_run is not None:
+        try:
+            import wandb
+            wb_summary = {
+                "eval/final_clusters": res["final_clusters"],
+                "eval/final_mem_size": res["final_mem_size"],
+                "eval/memory_time_sec": res["memory_time"],
+                "eval/wall_time_sec": res["wall_time"],
+            }
+            if "fid" in res:
+                wb_summary["eval/fid"] = res["fid"]
+            if os.path.exists(samples_path):
+                wb_run.log({"eval/generated_samples": wandb.Image(samples_path)})
+            wb_run.summary.update(wb_summary)
+            res["wandb_url"] = getattr(wb_run, "url", None)
+        finally:
+            wb_run.finish()
 
     return res

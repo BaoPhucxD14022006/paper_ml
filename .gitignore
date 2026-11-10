@@ -19,6 +19,10 @@ ENV/
 Data/FashionMNIST/
 Data/MNIST/
 
+# Weights & Biases temporary files & logs
+wandb/
+.wandb_cache/
+
 # PyTorch checkpoints & large model weights
 *.pt
 *.pth

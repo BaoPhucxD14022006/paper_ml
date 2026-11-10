@@ -45,4 +45,8 @@ eval:
   sample_steps: 100
   sample_batch: 100
   compute_fid: true
-
+wandb:
+  enabled: false
+  project: dcm-otfcl-cvpr2024
+  entity: null
+  tags: [lab1-reproduction, table1, generation, iddpm]

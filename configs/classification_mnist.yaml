@@ -18,7 +18,7 @@ memory:
   js_mode: exact          # exact | dimwise
   t_star: 100
   pi: 128                 # rho = memory_size // pi = 15
-  lambda: 60.0            # calibrated with tools/distance_stats.py (scale depends on preprocessing)
+  lambda: 60.0            # calibrated with tools/distance_stats.py
   expansion_mode: batch   # batch (Eq. 10) | sample (Algorithm 1)
   expansion_reassign: false
   intra_prune_mode: nearest   # nearest (text) | farthest (Eq. 12 as printed)
@@ -28,4 +28,8 @@ train:
   iters_per_step: 1
   replay_batch_size: 10
   train_source: stream+memory   # stream+memory | memory
-
+wandb:
+  enabled: false
+  project: dcm-otfcl-cvpr2024
+  entity: null
+  tags: [lab1-reproduction, table4, classification, split-mnist]
